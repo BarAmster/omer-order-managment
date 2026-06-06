@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/baramster/Library/Application Support/Claude/local-agent-mode-sessions/skills-plugin/ef7f881d-93a4-414e-a43c-04fa7aaa62dc/a361243b-476f-4ef9-ab52-6e2db16b0d17/skills/docx/**)",
+      "Bash(extract-text \"/Users/baramster/Documents/אפליקציה של עומר - אפיון 1.docx\")",
+      "Bash(pandoc \"/Users/baramster/Documents/אפליקציה של עומר - אפיון 1.docx\" -t markdown)",
+      "Bash(python3 -c ' *)",
+      "Bash(npx skills *)",
+      "Bash(npm create *)",
+      "Bash(npm install *)",
+      "Bash(mkdir -p /Users/baramster/projects/order-managment/server)",
+      "Bash(npm init *)",
+      "Bash(npm run *)",
+      "Bash(ipconfig getifaddr *)"
+    ]
+  }
+}
