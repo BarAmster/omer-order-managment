@@ -304,7 +304,7 @@ function CustomerModal({ initial, onSave, onClose }) {
         <div className="flex flex-col gap-3">
           <Field label="שם מלא *" value={name} onChange={setName} placeholder="ישראל ישראלי" />
           <Field label="שם חברה" value={company} onChange={setCompany} placeholder="חברת הבניה בע״מ" />
-          <Field label="ח.פ" value={vatId} onChange={setVatId} placeholder="123456789" dir="ltr" />
+          <Field label="ח.פ / ת.ז / ע.מ" value={vatId} onChange={setVatId} placeholder="123456789" dir="ltr" />
           <Field label="טלפון" value={phone} onChange={setPhone} placeholder="050-0000000" dir="ltr" />
 
           {/* Sites */}

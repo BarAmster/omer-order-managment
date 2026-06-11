@@ -406,7 +406,6 @@ function ItemEditor({ item, factoryAccessories, factoryPumps, onChange, onRemove
               />
             </div>
           )}
-          <QuantityRow item={item} label="קוב" onChange={onChange} />
           <PriceRow item={item} onChange={onChange} />
         </div>
       )}
@@ -473,16 +472,6 @@ function QuantityRow({ item, label, onChange }) {
           placeholder="0"
           dir="ltr"
         />
-      </div>
-      <div className="flex flex-col items-center gap-1 mt-4">
-        <p className="text-xs text-gray-500">פתוח</p>
-        <button
-          type="button"
-          onClick={() => onChange({ is_open_quantity: !item.is_open_quantity })}
-          className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${item.is_open_quantity ? 'bg-blue-600' : 'bg-gray-300'}`}
-        >
-          <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all duration-200 ${item.is_open_quantity ? 'right-1' : 'right-6'}`} />
-        </button>
       </div>
     </div>
   )
