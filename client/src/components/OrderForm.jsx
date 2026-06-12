@@ -122,23 +122,25 @@ export default function OrderForm({ initial, onClose, onSaved }) {
   }
 
   function updateItem(id, changes) {
+    const userEditedCost = 'unit_price_cost' in changes
     setItems(prev => {
       const next = prev.map(item => {
         if (item._id !== id) return item
         const updated = { ...item, ...changes }
-        // Recalc concrete cost
-        if (updated.product_type === 'concrete' && factoryId) {
-          const base = priceItems.find(p => p.product_type === 'concrete' && p.factory_id === factoryId)
-          const params = concreteParams.filter(p => p.factory_id === factoryId)
-          if (base) updated.unit_price_cost = calcConcretePrice(base.base_price, updated.strength, updated.concrete_type, updated.slump, params)
-        }
-        // Recalc pump cost
-        if (updated.product_type === 'pump' && factoryId) {
-          updated.unit_price_cost = calcPumpCost(updated, prev)
+        // Only auto-recalc cost if user didn't manually edit it
+        if (!userEditedCost) {
+          if (updated.product_type === 'concrete' && factoryId) {
+            const base = priceItems.find(p => p.product_type === 'concrete' && p.factory_id === factoryId)
+            const params = concreteParams.filter(p => p.factory_id === factoryId)
+            if (base) updated.unit_price_cost = calcConcretePrice(base.base_price, updated.strength, updated.concrete_type, updated.slump, params)
+          }
+          if (updated.product_type === 'pump' && factoryId) {
+            updated.unit_price_cost = calcPumpCost(updated, prev)
+          }
         }
         return updated
       })
-      // If concrete quantity changed, sync all pumps
+      // If concrete quantity changed, sync all pumps (but don't override manually edited pump cost)
       const changedItem = prev.find(i => i._id === id)
       if (changedItem?.product_type === 'concrete' && 'quantity' in changes) {
         return next.map(item => {
