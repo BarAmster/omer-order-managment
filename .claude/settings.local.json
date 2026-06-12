@@ -11,7 +11,10 @@
       "Bash(mkdir -p /Users/baramster/projects/order-managment/server)",
       "Bash(npm init *)",
       "Bash(npm run *)",
-      "Bash(ipconfig getifaddr *)"
+      "Bash(ipconfig getifaddr *)",
+      "Read(//Users/baramster/projects/rule-builder/**)",
+      "Bash(npx tsc *)",
+      "Bash(pip3 install *)"
     ]
   }
 }
