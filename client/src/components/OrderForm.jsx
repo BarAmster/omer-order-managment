@@ -297,6 +297,7 @@ export default function OrderForm({ initial, onClose, onSaved }) {
               <div className="flex gap-2">
                 {['צק', 'העברה', 'העברה בנקאית'].map(m => (
                   <button
+                    type="button"
                     key={m}
                     onClick={() => setPaymentMethod(paymentMethod === m ? '' : m)}
                     className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors ${
@@ -447,10 +448,11 @@ function SegmentedControl({ label, options, value, onChange }) {
       <div className="flex gap-1 flex-wrap">
         {options.map(o => (
           <button
+            type="button"
             key={o.value}
             onClick={() => onChange(o.value)}
             className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-              value === o.value ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200'
+              String(value) === String(o.value) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200'
             }`}
           >
             {o.label}
