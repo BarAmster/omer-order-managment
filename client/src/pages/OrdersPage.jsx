@@ -13,6 +13,24 @@ const STATUS_COLORS = {
   'נדחה': 'bg-gray-100 text-gray-600',
 }
 
+function startOfDay(d) {
+  const r = new Date(d); r.setHours(0, 0, 0, 0); return r
+}
+
+function startOfWeek(d) {
+  const r = new Date(d)
+  r.setDate(r.getDate() - r.getDay())
+  r.setHours(0, 0, 0, 0)
+  return r
+}
+
+function startOfMonth(d) {
+  const r = new Date(d)
+  r.setDate(1)
+  r.setHours(0, 0, 0, 0)
+  return r
+}
+
 export default function OrdersPage() {
   const [view, setView] = useState('יומי')
   const [anchor, setAnchor] = useState(startOfDay(new Date()))
@@ -29,25 +47,34 @@ export default function OrdersPage() {
   useEffect(() => { fetchFactories() }, [])
   useEffect(() => { fetchOrders() }, [anchor, view])
 
-  function startOfDay(d) {
-    const r = new Date(d); r.setHours(0,0,0,0); return r
-  }
-
   function getRange() {
-    const from = new Date(anchor)
-    const to = new Date(anchor)
-    if (view === 'יומי') { to.setDate(to.getDate() + 1) }
-    else if (view === 'שבועי') { to.setDate(to.getDate() + 7) }
-    else { to.setMonth(to.getMonth() + 1) }
+    if (view === 'יומי') {
+      const from = new Date(anchor)
+      const to = new Date(anchor); to.setDate(to.getDate() + 1)
+      return { from, to }
+    }
+    if (view === 'שבועי') {
+      const from = startOfWeek(anchor)
+      const to = new Date(from); to.setDate(to.getDate() + 7)
+      return { from, to }
+    }
+    // חודשי
+    const from = startOfMonth(anchor)
+    const to = new Date(from); to.setMonth(to.getMonth() + 1)
     return { from, to }
   }
 
   function navigate(dir) {
-    const d = new Date(anchor)
-    if (view === 'יומי') d.setDate(d.getDate() + dir)
-    else if (view === 'שבועי') d.setDate(d.getDate() + 7 * dir)
-    else d.setMonth(d.getMonth() + dir)
-    setAnchor(d)
+    if (view === 'יומי') {
+      const d = new Date(anchor); d.setDate(d.getDate() + dir)
+      setAnchor(d)
+    } else if (view === 'שבועי') {
+      const d = startOfWeek(anchor); d.setDate(d.getDate() + 7 * dir)
+      setAnchor(d)
+    } else {
+      const d = startOfMonth(anchor); d.setMonth(d.getMonth() + dir)
+      setAnchor(d)
+    }
   }
 
   function formatRangeLabel() {
@@ -120,7 +147,12 @@ export default function OrdersPage() {
           {VIEWS.map(v => (
             <button
               key={v}
-              onClick={() => setView(v)}
+              onClick={() => {
+                setView(v)
+                if (v === 'שבועי') setAnchor(startOfWeek(new Date()))
+                else if (v === 'חודשי') setAnchor(startOfMonth(new Date()))
+                else setAnchor(startOfDay(new Date()))
+              }}
               className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                 view === v ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
               }`}
