@@ -409,6 +409,25 @@ function ItemEditor({ item, factoryAccessories, factoryPumps, onChange, onRemove
               />
             </div>
           )}
+          {(() => {
+            const pumpItem = factoryPumps.find(p => p.product_name === item.pump_size)
+            const qty = parseFloat(item.quantity) || 0
+            if (!pumpItem || qty === 0) return null
+            const extraCubic = Math.max(0, qty - 10)
+            const extraPipe = pumpItem.pipe_included_meters != null
+              ? Math.max(0, (item.pipe_meters ?? pumpItem.pipe_included_meters) - pumpItem.pipe_included_meters)
+              : 0
+            const lines = [
+              `בסיס: ${pumpItem.base_price.toLocaleString()}₪ (כולל 10 קוב)`,
+              extraCubic > 0 && `שאיבה: ${extraCubic} קוב × ${pumpItem.extra_per_unit}₪ = ${(extraCubic * pumpItem.extra_per_unit).toLocaleString()}₪`,
+              extraPipe > 0 && `צינור: ${extraPipe}מ׳ × ${pumpItem.pipe_extra_per_meter}₪ = ${(extraPipe * pumpItem.pipe_extra_per_meter).toLocaleString()}₪`,
+            ].filter(Boolean)
+            return (
+              <div className="bg-gray-50 rounded-lg px-3 py-2 text-xs text-gray-500 flex flex-col gap-0.5">
+                {lines.map((l, i) => <span key={i}>{l}</span>)}
+              </div>
+            )
+          })()}
           <PriceRow item={item} onChange={onChange} />
         </div>
       )}
