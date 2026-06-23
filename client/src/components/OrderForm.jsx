@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { calcConcretePrice, calcPumpPrice } from '../lib/pricing'
 import { X, Plus, Trash2 } from 'lucide-react'
@@ -45,6 +45,9 @@ export default function OrderForm({ initial, onClose, onSaved }) {
   const [concreteParams, setConcreteParams] = useState([])
 
   const [customerId, setCustomerId] = useState(initial?.customers?.id || '')
+  const [customerSearch, setCustomerSearch] = useState(initial?.customers?.name || '')
+  const [customerDropdownOpen, setCustomerDropdownOpen] = useState(false)
+  const customerInputRef = useRef(null)
   const [factoryId, setFactoryId] = useState(initial?.factories?.id || '')
   const [location, setLocation] = useState(initial?.location || '')
   const [scheduledAt, setScheduledAt] = useState(
@@ -226,19 +229,55 @@ export default function OrderForm({ initial, onClose, onSaved }) {
         </div>
 
           <div className="flex flex-col gap-4">
-            {/* Customer */}
-            <div>
+            {/* Customer autocomplete */}
+            <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">לקוח *</label>
-              <select
-                value={customerId}
-                onChange={e => { setCustomerId(e.target.value); setLocation('') }}
+              <input
+                ref={customerInputRef}
+                value={customerSearch}
+                onChange={e => {
+                  setCustomerSearch(e.target.value)
+                  setCustomerId('')
+                  setLocation('')
+                  setCustomerDropdownOpen(true)
+                }}
+                onFocus={() => setCustomerDropdownOpen(true)}
+                onBlur={() => setTimeout(() => setCustomerDropdownOpen(false), 150)}
+                placeholder="חפש לקוח..."
                 className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              >
-                <option value="">בחר לקוח...</option>
-                {customers.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}{c.company_name ? ` — ${c.company_name}` : ''}</option>
-                ))}
-              </select>
+              />
+              {customerDropdownOpen && customerSearch && (() => {
+                const q = customerSearch.toLowerCase()
+                const matches = customers.filter(c =>
+                  c.name.toLowerCase().includes(q) ||
+                  (c.company_name || '').toLowerCase().includes(q)
+                )
+                if (matches.length === 0) return (
+                  <div className="absolute z-20 w-full bg-white border border-gray-200 rounded-xl mt-1 shadow-lg py-2 px-4 text-sm text-gray-400">
+                    לא נמצאו לקוחות
+                  </div>
+                )
+                return (
+                  <div className="absolute z-20 w-full bg-white border border-gray-200 rounded-xl mt-1 shadow-lg overflow-hidden max-h-52 overflow-y-auto">
+                    {matches.map(c => (
+                      <button
+                        type="button"
+                        key={c.id}
+                        onMouseDown={() => {
+                          setCustomerId(c.id)
+                          setCustomerSearch(c.name + (c.company_name ? ` — ${c.company_name}` : ''))
+                          setCustomerDropdownOpen(false)
+                          setLocation('')
+                        }}
+                        className="w-full text-right px-4 py-2.5 text-sm hover:bg-gray-50 active:bg-gray-100 border-b border-gray-100 last:border-0"
+                      >
+                        <span className="font-medium text-gray-900">{c.name}</span>
+                        {c.company_name && <span className="text-gray-400 text-xs mr-1"> — {c.company_name}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )
+              })()}
             </div>
 
             {/* Location — from customer sites */}
