@@ -14,7 +14,16 @@
       "Bash(ipconfig getifaddr *)",
       "Read(//Users/baramster/projects/rule-builder/**)",
       "Bash(npx tsc *)",
-      "Bash(pip3 install *)"
+      "Bash(pip3 install *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(extract-text \"/Users/baramster/Downloads/באזא פרוייקטים בעמ- הצעת מחיר.docx\")",
+      "Read(//private/tmp/claude-501/bundled-skills/2.1.156/ef7f881d-93a4-414e-a43c-04fa7aaa62dc/**)",
+      "Bash(python scripts/office/unpack.py \"/Users/baramster/Downloads/באזא פרוייקטים בעמ- הצעת מחיר.docx\" /tmp/quote_unpacked/)",
+      "Bash(ls \"/private/tmp/claude-501/bundled-skills/2.1.156/\")",
+      "Bash(python3 __TRACKED_VAR__/scripts/office/unpack.py '/Users/baramster/Downloads/באזא פרוייקטים בעמ- הצעת מחיר.docx' /tmp/quote_unpacked/)",
+      "Bash(git commit -m 'replace customer select with autocomplete search in order form *)"
     ]
   }
 }
