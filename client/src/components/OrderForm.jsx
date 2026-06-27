@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { calcConcretePrice, calcPumpPrice } from '../lib/pricing'
+import { calcConcretePrice, calcPumpPrice, calcMixerCost } from '../lib/pricing'
 import { createCustomer } from '../lib/customers'
 import CustomerModal from './CustomerModal'
 import { X, Plus, Trash2, UserPlus } from 'lucide-react'
@@ -38,6 +38,9 @@ function newPumpItem() {
 }
 function newAccessoryItem() {
   return { _id: Math.random(), product_type: 'accessory', product_name: '', quantity: '', is_open_quantity: false, unit_price_customer: '', unit_price_cost: '' }
+}
+function newMixerItem() {
+  return { _id: Math.random(), product_type: 'mixer', product_name: 'מיקסר', quantity: '', is_open_quantity: false, unit_price_customer: '', unit_price_cost: '' }
 }
 
 export default function OrderForm({ initial, onClose, onSaved }) {
@@ -110,6 +113,14 @@ export default function OrderForm({ initial, onClose, onSaved }) {
           return { ...item, quantity: concreteItem?.quantity || item.quantity, unit_price_cost: cost }
         }
       }
+      if (item.product_type === 'mixer') {
+        const mixerItem = priceItems.find(p => p.product_type === 'mixer' && p.factory_id === factoryId)
+        if (mixerItem) {
+          const concreteItem = prev.find(i => i.product_type === 'concrete')
+          const qty = parseFloat(concreteItem?.quantity) || parseFloat(item.quantity) || 0
+          return { ...item, quantity: concreteItem?.quantity || item.quantity, unit_price_cost: calcMixerCost(mixerItem, qty) }
+        }
+      }
       return item
     }))
   }, [factoryId, priceItems, concreteParams])
@@ -128,6 +139,19 @@ export default function OrderForm({ initial, onClose, onSaved }) {
     return qty > 0 ? calcPumpPrice(pumpItem, qty, pipeMeters) : pumpItem.base_price
   }
 
+  function findMixerItem() {
+    return priceItems.find(p => p.product_type === 'mixer' && p.factory_id === factoryId)
+  }
+
+  function calcMixerItemCost(updated, allItems) {
+    const mixerItem = findMixerItem()
+    if (!mixerItem) return updated.unit_price_cost
+    // Quantity always equals concrete quantity
+    const concreteItem = allItems.find(i => i.product_type === 'concrete')
+    const qty = parseFloat(concreteItem?.quantity) || parseFloat(updated.quantity) || 0
+    return calcMixerCost(mixerItem, qty)
+  }
+
   function updateItem(id, changes) {
     const userEditedCost = 'unit_price_cost' in changes
     setItems(prev => {
@@ -144,15 +168,19 @@ export default function OrderForm({ initial, onClose, onSaved }) {
           if (updated.product_type === 'pump' && factoryId) {
             updated.unit_price_cost = calcPumpCost(updated, prev)
           }
+          if (updated.product_type === 'mixer' && factoryId) {
+            updated.unit_price_cost = calcMixerItemCost(updated, prev)
+          }
         }
         return updated
       })
-      // If concrete quantity changed, sync all pumps (but don't override manually edited pump cost)
+      // If concrete quantity changed, sync all pumps/mixers (but don't override manually edited cost)
       const changedItem = prev.find(i => i._id === id)
       if (changedItem?.product_type === 'concrete' && 'quantity' in changes) {
         return next.map(item => {
-          if (item.product_type !== 'pump') return item
-          return { ...item, quantity: changes.quantity, unit_price_cost: calcPumpCost(item, next) }
+          if (item.product_type === 'pump') return { ...item, quantity: changes.quantity, unit_price_cost: calcPumpCost(item, next) }
+          if (item.product_type === 'mixer') return { ...item, quantity: changes.quantity, unit_price_cost: calcMixerItemCost(item, next) }
+          return item
         })
       }
       return next
@@ -193,6 +221,7 @@ export default function OrderForm({ initial, onClose, onSaved }) {
         product_type: item.product_type,
         product_name: item.product_type === 'concrete' ? 'בטון'
           : item.product_type === 'pump' ? `משאבה ${item.pump_size}`
+          : item.product_type === 'mixer' ? 'מיקסר'
           : item.product_name,
         quantity: parseFloat(item.quantity) || 0,
         is_open_quantity: item.is_open_quantity,
@@ -219,6 +248,7 @@ export default function OrderForm({ initial, onClose, onSaved }) {
 
   const sites = selectedCustomer?.customer_sites?.map(s => s.site_name) || []
   const factoryAccessories = priceItems.filter(p => p.product_type === 'accessory' && p.factory_id === factoryId)
+  const factoryMixer = priceItems.find(p => p.product_type === 'mixer' && p.factory_id === factoryId)
   const valid = customerId && factoryId && location && scheduledAt && items.length > 0
 
   return (
@@ -380,6 +410,7 @@ export default function OrderForm({ initial, onClose, onSaved }) {
                     item={item}
                     factoryAccessories={factoryAccessories}
                     factoryPumps={priceItems.filter(p => p.product_type === 'pump' && p.factory_id === factoryId)}
+                    factoryMixer={factoryMixer}
                     onChange={changes => updateItem(item._id, changes)}
                     onRemove={() => removeItem(item._id)}
                     canRemove={items.length > 1}
@@ -396,6 +427,18 @@ export default function OrderForm({ initial, onClose, onSaved }) {
                 </button>
                 <button onClick={() => setItems(p => [...p, newAccessoryItem()])} className="flex-1 border border-dashed border-gray-300 rounded-xl py-2 text-xs text-gray-500 flex items-center justify-center gap-1">
                   <Plus size={13} /> נלווה
+                </button>
+                <button
+                  onClick={() => setItems(p => {
+                    const concreteItem = p.find(i => i.product_type === 'concrete')
+                    const qty = concreteItem?.quantity || ''
+                    const mixerItem = priceItems.find(pi => pi.product_type === 'mixer' && pi.factory_id === factoryId)
+                    const cost = mixerItem ? calcMixerCost(mixerItem, parseFloat(qty) || 0) : ''
+                    return [...p, { ...newMixerItem(), quantity: qty, unit_price_cost: cost }]
+                  })}
+                  className="flex-1 border border-dashed border-gray-300 rounded-xl py-2 text-xs text-gray-500 flex items-center justify-center gap-1"
+                >
+                  <Plus size={13} /> מיקסר
                 </button>
               </div>
             </div>
@@ -445,7 +488,7 @@ export default function OrderForm({ initial, onClose, onSaved }) {
   )
 }
 
-function ItemEditor({ item, factoryAccessories, factoryPumps, onChange, onRemove, canRemove }) {
+function ItemEditor({ item, factoryAccessories, factoryPumps, factoryMixer, onChange, onRemove, canRemove }) {
   return (
     <div className="bg-gray-50 rounded-2xl p-3 relative">
       {canRemove && (
@@ -533,6 +576,32 @@ function ItemEditor({ item, factoryAccessories, factoryPumps, onChange, onRemove
             </select>
           )}
           <QuantityRow item={item} label="יח׳" onChange={onChange} />
+          <PriceRow item={item} onChange={onChange} />
+        </div>
+      )}
+
+      {item.product_type === 'mixer' && (
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-semibold text-gray-600 mb-1">מיקסר</p>
+          {!factoryMixer ? (
+            <p className="text-xs text-orange-500 bg-orange-50 rounded-xl px-3 py-2">
+              לא הוגדר מיקסר במחירון של מפעל זה. הוסף קודם במחירונים.
+            </p>
+          ) : (() => {
+            const qty = parseFloat(item.quantity) || 0
+            const minQty = factoryMixer.min_cubic_meters ?? 0
+            const shortfall = Math.max(0, minQty - qty)
+            const lines = [
+              `בסיס: ${factoryMixer.base_price.toLocaleString()}₪`,
+              shortfall > 0 && `דמי השלמה: ${shortfall} קוב חסר × ${factoryMixer.shortfall_fee_cost}₪ = ${(shortfall * factoryMixer.shortfall_fee_cost).toLocaleString()}₪`,
+              `כמות בטון: ${qty} קוב (רף ${minQty} קוב)`,
+            ].filter(Boolean)
+            return (
+              <div className="bg-gray-50 rounded-lg px-3 py-2 text-xs text-gray-500 flex flex-col gap-0.5">
+                {lines.map((l, i) => <span key={i}>{l}</span>)}
+              </div>
+            )
+          })()}
           <PriceRow item={item} onChange={onChange} />
         </div>
       )}

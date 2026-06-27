@@ -85,7 +85,7 @@ Database: **PostgreSQL (Supabase)**.
 | Entity | מטרה | שדות מפתח | קשרים |
 |--------|------|-----------|-------|
 | `factories` | מפעל | `name` | 1→N price_list_items, concrete_params |
-| `price_list_items` | פריט מחירון | `product_type`, `base_price`, `extra_per_unit`, `pipe_*` | N→1 factory |
+| `price_list_items` | פריט מחירון | `product_type`, `base_price`, `extra_per_unit`, `pipe_*`, `min_cubic_meters`, `shortfall_fee_cost` | N→1 factory |
 | `factory_concrete_params` | תוספות בטון | `param_type`, `param_value`, `price_addition` | N→1 factory |
 | `customers` | לקוח | `name`, `company_name`, `vat_id`, `phone`, `type` | 1→N sites, orders |
 | `customer_sites` | אתר בנייה | `site_name` | N→1 customer |
@@ -93,8 +93,9 @@ Database: **PostgreSQL (Supabase)**.
 | `order_items` | פריט הזמנה | `product_type`, `quantity`, `unit_price_customer`, `unit_price_cost`, פרמטרי בטון/משאבה | N→1 order |
 
 **Migrations:** `schema.sql` (בסיס) + `migration_concrete_params.sql` +
-`migration_pump_pipe.sql` + `migration_pump_size_constraint.sql`. מורצים ידנית
-ב-Supabase SQL editor. `cascade`/`set null` מוגדרים ב-FKs.
+`migration_pump_pipe.sql` + `migration_pump_size_constraint.sql` +
+`migration_mixer.sql`. מורצים ידנית ב-Supabase SQL editor. `cascade`/`set null`
+מוגדרים ב-FKs.
 
 ---
 

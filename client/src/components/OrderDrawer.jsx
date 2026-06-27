@@ -59,6 +59,13 @@ export default function OrderDrawer({ order, onClose, onEdit, onRefresh, readOnl
         subExtra: `מחיר שאיבה: ${item.unit_price_customer}₪`,
       }
     }
+    if (item.product_type === 'mixer') {
+      return {
+        title: 'מיקסר',
+        sub: `${concreteQty() || ''} קוב בטון`.trim(),
+        subExtra: `מחיר: ${item.unit_price_customer}₪`,
+      }
+    }
     return {
       title: item.product_name,
       sub: `${item.quantity}${item.is_open_quantity ? '+' : ''} יח׳ × ${item.unit_price_customer}₪`,
@@ -66,8 +73,8 @@ export default function OrderDrawer({ order, onClose, onEdit, onRefresh, readOnl
   }
 
   function itemTotal(i, field) {
-    // pump price is per job (not per unit), cost is also per job
-    if (i.product_type === 'pump') return i[field] || 0
+    // pump/mixer price is per job (not per unit), cost is also per job
+    if (i.product_type === 'pump' || i.product_type === 'mixer') return i[field] || 0
     return i.quantity * (i[field] || 0)
   }
   const totalCustomer = order.order_items?.reduce((s, i) => s + itemTotal(i, 'unit_price_customer'), 0) || 0
@@ -125,7 +132,7 @@ export default function OrderDrawer({ order, onClose, onEdit, onRefresh, readOnl
             <div className="flex flex-col gap-3">
               {order.order_items?.map(item => {
                 const row = itemRows(item)
-                const total = item.product_type === 'pump'
+                const total = (item.product_type === 'pump' || item.product_type === 'mixer')
                   ? item.unit_price_customer
                   : item.quantity * item.unit_price_customer
                 return (

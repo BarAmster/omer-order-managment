@@ -9,10 +9,14 @@ create table factories (
 create table price_list_items (
   id uuid primary key default gen_random_uuid(),
   factory_id uuid references factories(id) on delete cascade not null,
-  product_type text not null check (product_type in ('concrete', 'pump', 'accessory')),
+  product_type text not null check (product_type in ('concrete', 'pump', 'accessory', 'mixer')),
   product_name text not null,
   base_price numeric(10,2) not null,
   extra_per_unit numeric(10,2), -- for pump: price per m³ above 10
+  pipe_included_meters numeric(10,2), -- for pump: included pipe length
+  pipe_extra_per_meter numeric(10,2), -- for pump: price per extra pipe meter
+  min_cubic_meters numeric(10,2), -- for mixer: minimum order threshold in m³
+  shortfall_fee_cost numeric(10,2), -- for mixer: cost per m³ below threshold
   created_at timestamptz default now()
 );
 
@@ -53,7 +57,7 @@ create table orders (
 create table order_items (
   id uuid primary key default gen_random_uuid(),
   order_id uuid references orders(id) on delete cascade not null,
-  product_type text not null check (product_type in ('concrete', 'pump', 'accessory')),
+  product_type text not null check (product_type in ('concrete', 'pump', 'accessory', 'mixer')),
   product_name text not null,
   quantity numeric(10,2) not null,
   is_open_quantity boolean default false, -- true = "16+" style

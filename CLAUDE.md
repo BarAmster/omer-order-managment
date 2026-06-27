@@ -143,9 +143,13 @@ client/src/
   `pipe_extra_per_meter` (לצינור, רלוונטי למשאבת מייקו וכד').
 - **מוצרים נלווים** — שורות `price_list_items` מסוג `accessory`: `product_name` +
   `base_price` ליחידה.
+- **מיקסר** — שורת `price_list_items` אחת מסוג `mixer`: `base_price` (עלות בסיס),
+  `min_cubic_meters` (רף הזמנה מינימלי בקוב בטון), `shortfall_fee_cost` (דמי השלמה
+  לקוב, נגבה מהמפעל לכל קוב מתחת לרף). הרף ודמי ההשלמה ניתנים לעריכה לכל מפעל.
 
 **יצירת מפעל חדש** מאתחלת אוטומטית: שורת בטון (`base_price=0`), 4 משאבות ברירת מחדל
-(36מ/42מ/52מ/מייקו), וכל פרמטרי הבטון מתוך `DEFAULT_CONCRETE_PARAMS`.
+(36מ/42מ/52מ/מייקו), שורת מיקסר ברירת מחדל (`base_price=0`, `min_cubic_meters=8`,
+`shortfall_fee_cost=0`), וכל פרמטרי הבטון מתוך `DEFAULT_CONCRETE_PARAMS`.
 
 ### 5.3 הזמנות (`orders` + `order_items`)
 
@@ -159,7 +163,7 @@ client/src/
 
 **אמצעי תשלום:** `צק` | `העברה` | `העברה בנקאית` (אופציונלי).
 
-**פריטי הזמנה (`order_items`)** — שלושה סוגים (`product_type`):
+**פריטי הזמנה (`order_items`)** — ארבעה סוגים (`product_type`):
 
 1. **`concrete` (בטון)**
    - פרמטרים: `strength` (`b20`/`b30`/`b40`/`b50`/`b60`), `concrete_type`
@@ -175,6 +179,14 @@ client/src/
    - `pipe_meters` — מטרי צינור בפועל (ברירת מחדל = `pipe_included_meters`).
 
 3. **`accessory` (מוצר נלווה)** — `product_name` נבחר מהמחירון; `quantity × unit_price`.
+
+4. **`mixer` (מיקסר)** — תמחור **per-job**, לא per-unit, כמו `pump`:
+   - כמות המיקסר **תמיד שווה לכמות הבטון** בהזמנה (מסונכרן אוטומטית).
+   - `unit_price_cost` מחושב אוטומטית: `base_price` + (קוב חסר מתחת לרף) ×
+     `shortfall_fee_cost` של המיקסר במחירון המפעל. ניתן לעריכה ידנית (override).
+   - `unit_price_customer` **תמיד ידני** — אין חישוב אוטומטי, ואין שדה "מחיר לקוח"
+     או "דמי השלמה ללקוח" במחירון; המשתמש קובע לפי ראות עיניו בכל הזמנה.
+   - בחישוב סה"כ ורווח, פריט mixer לא מוכפל ב-`quantity` (כמו pump).
 
 ---
 
@@ -198,10 +210,18 @@ total       = base_price + extra_cubic × extra_per_unit
 ```
 (`calcPumpPrice(pumpItem, cubicMeters, pipeMeters)`). `cubic_meters` = כמות הבטון.
 
+### מיקסר
+```
+shortfall = max(0, min_cubic_meters − cubic_meters)
+unit_price_cost = base_price + shortfall × shortfall_fee_cost
+```
+(`calcMixerCost(mixerItem, cubicMeters)`). `cubic_meters` = כמות הבטון. אם הכמות
+מעל הרף, `shortfall = 0` ואין תוספת.
+
 ### התנהגות auto בטופס (`OrderForm.jsx`)
-- `unit_price_cost` מחושב **אוטומטית** משינוי מפעל / פרמטרי בטון / כמות.
+- `unit_price_cost` מחושב **אוטומטית** משינוי מפעל / פרמטרי בטון / כמות (גם למיקסר).
 - אם המשתמש **עורך ידנית** את `unit_price_cost`, החישוב האוטומטי לא דורס אותו.
-- שינוי כמות הבטון מסנכרן את כמות+עלות כל המשאבות בהזמנה.
+- שינוי כמות הבטון מסנכרן את כמות+עלות כל המשאבות והמיקסרים בהזמנה.
 - `unit_price_customer` (מחיר ללקוח) תמיד ידני.
 
 ---
@@ -211,7 +231,7 @@ total       = base_price + extra_cubic × extra_per_unit
 | טבלה | תיאור / שדות עיקריים |
 |------|----------------------|
 | `factories` | `name` |
-| `price_list_items` | `factory_id`, `product_type` (`concrete`/`pump`/`accessory`), `product_name`, `base_price`, `extra_per_unit`, `pipe_included_meters`, `pipe_extra_per_meter` |
+| `price_list_items` | `factory_id`, `product_type` (`concrete`/`pump`/`accessory`/`mixer`), `product_name`, `base_price`, `extra_per_unit`, `pipe_included_meters`, `pipe_extra_per_meter`, `min_cubic_meters`, `shortfall_fee_cost` |
 | `factory_concrete_params` | `factory_id`, `param_type` (`strength`/`concrete_type`/`slump`), `param_value`, `price_addition` · unique(factory, type, value) |
 | `customers` | `name`, `company_name`, `vat_id`, `phone`, `type` (`new`/`regular`) |
 | `customer_sites` | `customer_id`, `site_name` |
@@ -220,7 +240,7 @@ total       = base_price + extra_cubic × extra_per_unit
 
 **Migrations** (להריץ ב-Supabase SQL editor, בנוסף ל-`schema.sql`):
 `migration_concrete_params.sql`, `migration_pump_pipe.sql`,
-`migration_pump_size_constraint.sql`. seed: `seed_customers.sql`.
+`migration_pump_size_constraint.sql`, `migration_mixer.sql`. seed: `seed_customers.sql`.
 
 ### RLS / אבטחה
 - RLS מופעל על כל הטבלאות.

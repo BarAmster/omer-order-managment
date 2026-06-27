@@ -43,6 +43,13 @@ export const PUMP_CONFIG = {
   maico: { base: 1500, extra: 40, pipeIncluded: 20, pipeExtra: 40 },
 }
 
+// mixerItem = row from price_list_items (product_type === 'mixer')
+export function calcMixerCost(mixerItem, cubicMeters) {
+  if (!mixerItem) return 0
+  const shortfall = Math.max(0, (mixerItem.min_cubic_meters ?? 0) - cubicMeters)
+  return mixerItem.base_price + shortfall * (mixerItem.shortfall_fee_cost ?? 0)
+}
+
 // pumpItem = row from price_list_items
 export function calcPumpPrice(pumpItem, cubicMeters, pipeMeters) {
   if (!pumpItem) return 0

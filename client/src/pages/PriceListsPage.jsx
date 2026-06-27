@@ -21,6 +21,7 @@ export default function PriceListsPage() {
   const [concreteModal, setConcreteModal] = useState(null)   // { factoryId, item }
   const [paramModal, setParamModal] = useState(null)         // { param }
   const [pumpModal, setPumpModal] = useState(null)           // { factoryId, item? }
+  const [mixerModal, setMixerModal] = useState(null)         // { factoryId, item }
   const [accessoryModal, setAccessoryModal] = useState(null) // { factoryId, item? }
 
   useEffect(() => { fetchAll() }, [])
@@ -63,6 +64,7 @@ export default function PriceListsPage() {
             { factory_id: data.id, product_type: 'pump', product_name: '42מ', base_price: 1500, extra_per_unit: 40 },
             { factory_id: data.id, product_type: 'pump', product_name: '52מ', base_price: 2000, extra_per_unit: 50 },
             { factory_id: data.id, product_type: 'pump', product_name: 'מייקו', base_price: 1500, extra_per_unit: 40, pipe_included_meters: 20, pipe_extra_per_meter: 40 },
+            { factory_id: data.id, product_type: 'mixer', product_name: 'מיקסר', base_price: 0, min_cubic_meters: 8, shortfall_fee_cost: 0 },
           ]),
         ])
       }
@@ -99,6 +101,17 @@ export default function PriceListsPage() {
       await supabase.from('price_list_items').insert({ ...data, factory_id: factoryId })
     }
     setPumpModal(null)
+    fetchAll()
+  }
+
+  async function saveMixer({ id, factoryId, base_price, min_cubic_meters, shortfall_fee_cost }) {
+    const data = { base_price, min_cubic_meters, shortfall_fee_cost }
+    if (id) {
+      await supabase.from('price_list_items').update(data).eq('id', id)
+    } else {
+      await supabase.from('price_list_items').insert({ ...data, factory_id: factoryId, product_type: 'mixer', product_name: 'מיקסר' })
+    }
+    setMixerModal(null)
     fetchAll()
   }
 
@@ -139,6 +152,7 @@ export default function PriceListsPage() {
           const fParams = concreteParams[factory.id] || []
           const concreteItem = fItems.find(i => i.product_type === 'concrete')
           const pumps = fItems.filter(i => i.product_type === 'pump')
+          const mixerItem = fItems.find(i => i.product_type === 'mixer')
           const accessories = fItems.filter(i => i.product_type === 'accessory')
           const isOpen = openFactory === factory.id
 
@@ -250,6 +264,31 @@ export default function PriceListsPage() {
                     </div>
                   </CollapsibleSection>
 
+                  {/* === MIXER === */}
+                  <CollapsibleSection title="מיקסר">
+                    <div
+                      className={`flex items-center justify-between px-4 py-3 rounded-xl mx-3 mb-3 cursor-pointer ${!mixerItem || mixerItem.base_price === 0 ? 'bg-orange-50 border border-orange-200' : 'bg-gray-50'}`}
+                      onClick={() => mixerItem && setMixerModal({ factoryId: factory.id, item: mixerItem })}
+                    >
+                      <div>
+                        <p className="text-xs text-gray-500 mb-0.5">מחיר עלות בסיס</p>
+                        <p className="text-sm font-bold text-gray-900">
+                          {mixerItem ? (
+                            mixerItem.base_price === 0
+                              ? <span className="text-orange-500">לא הוגדר — לחץ לעדכון</span>
+                              : `${mixerItem.base_price}₪`
+                          ) : '—'}
+                        </p>
+                        {mixerItem && (
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            רף: {mixerItem.min_cubic_meters ?? 0} קוב · דמי השלמה: {mixerItem.shortfall_fee_cost ?? 0}₪/קוב חסר
+                          </p>
+                        )}
+                      </div>
+                      <Pencil size={15} className="text-gray-400" />
+                    </div>
+                  </CollapsibleSection>
+
                   {/* === ACCESSORIES === */}
                   <CollapsibleSection title="מוצרים נלווים">
                     <div className="px-3 pb-3 flex flex-col gap-2">
@@ -292,6 +331,7 @@ export default function PriceListsPage() {
       {concreteModal && <ConcreteModal initial={concreteModal} onSave={saveConcrete} onClose={() => setConcreteModal(null)} />}
       {paramModal && <ParamModal param={paramModal.param} onSave={saveParam} onClose={() => setParamModal(null)} />}
       {pumpModal && <PumpModal initial={pumpModal} onSave={savePump} onClose={() => setPumpModal(null)} />}
+      {mixerModal && <MixerModal initial={mixerModal} onSave={saveMixer} onClose={() => setMixerModal(null)} />}
       {accessoryModal && <AccessoryModal initial={accessoryModal} onSave={saveAccessory} onClose={() => setAccessoryModal(null)} />}
     </div>
   )
@@ -450,6 +490,53 @@ function PumpModal({ initial, onSave, onClose }) {
             extra_per_unit: parseFloat(extraPerUnit),
             pipe_included_meters: showPipe && pipeIncluded !== '' ? parseFloat(pipeIncluded) : null,
             pipe_extra_per_meter: showPipe && pipeExtra !== '' ? parseFloat(pipeExtra) : null,
+          })}
+          disabled={!valid}
+          className="w-full bg-blue-600 text-white rounded-xl py-2.5 text-sm font-medium disabled:opacity-40"
+        >
+          שמור
+        </button>
+      </div>
+    </Modal>
+  )
+}
+
+function MixerModal({ initial, onSave, onClose }) {
+  const item = initial.item
+  const [basePrice, setBasePrice] = useState(item?.base_price ?? '')
+  const [minCubicMeters, setMinCubicMeters] = useState(item?.min_cubic_meters ?? '')
+  const [shortfallFee, setShortfallFee] = useState(item?.shortfall_fee_cost ?? '')
+
+  const valid = basePrice !== '' && minCubicMeters !== '' && shortfallFee !== ''
+
+  return (
+    <Modal title="מיקסר" onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">מחיר עלות בסיס (₪)</label>
+          <input autoFocus type="number" value={basePrice} onChange={e => setBasePrice(e.target.value)}
+            className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="0" dir="ltr" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">רף קוב מינימלי</label>
+          <input type="number" value={minCubicMeters} onChange={e => setMinCubicMeters(e.target.value)}
+            className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="8" dir="ltr" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">דמי השלמה לקוב חסר (₪)</label>
+          <input type="number" value={shortfallFee} onChange={e => setShortfallFee(e.target.value)}
+            className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="0" dir="ltr" />
+          <p className="text-xs text-gray-400 mt-1">נגבה עבור כל קוב מתחת לרף, בנוסף למחיר העלות הבסיסי</p>
+        </div>
+        <button
+          onClick={() => valid && onSave({
+            id: item?.id, factoryId: initial.factoryId,
+            base_price: parseFloat(basePrice),
+            min_cubic_meters: parseFloat(minCubicMeters),
+            shortfall_fee_cost: parseFloat(shortfallFee),
           })}
           disabled={!valid}
           className="w-full bg-blue-600 text-white rounded-xl py-2.5 text-sm font-medium disabled:opacity-40"
