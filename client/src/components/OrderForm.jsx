@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { calcConcretePrice, calcPumpPrice } from '../lib/pricing'
-import { X, Plus, Trash2 } from 'lucide-react'
+import { createCustomer } from '../lib/customers'
+import CustomerModal from './CustomerModal'
+import { X, Plus, Trash2, UserPlus } from 'lucide-react'
 
 const STRENGTH_OPTIONS = [
   { value: 'b20', label: 'ב20' },
@@ -47,6 +49,8 @@ export default function OrderForm({ initial, onClose, onSaved }) {
   const [customerId, setCustomerId] = useState(initial?.customers?.id || '')
   const [customerSearch, setCustomerSearch] = useState(initial?.customers?.name || '')
   const [customerDropdownOpen, setCustomerDropdownOpen] = useState(false)
+  const [showCustomerModal, setShowCustomerModal] = useState(false)
+  const [customerModalName, setCustomerModalName] = useState('')
   const customerInputRef = useRef(null)
   const [factoryId, setFactoryId] = useState(initial?.factories?.id || '')
   const [location, setLocation] = useState(initial?.location || '')
@@ -246,35 +250,52 @@ export default function OrderForm({ initial, onClose, onSaved }) {
                 placeholder="חפש לקוח..."
                 className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               />
-              {customerDropdownOpen && customerSearch && (() => {
-                const q = customerSearch.toLowerCase()
-                const matches = customers.filter(c =>
-                  c.name.toLowerCase().includes(q) ||
-                  (c.company_name || '').toLowerCase().includes(q)
-                )
-                if (matches.length === 0) return (
-                  <div className="absolute z-20 w-full bg-white border border-gray-200 rounded-xl mt-1 shadow-lg py-2 px-4 text-sm text-gray-400">
-                    לא נמצאו לקוחות
-                  </div>
-                )
+              {customerDropdownOpen && (() => {
+                // When a customer is already selected the input shows "name — company",
+                // which isn't a real query — show the full list so it can be switched.
+                const q = customerId ? '' : customerSearch.trim().toLowerCase()
+                const matches = q
+                  ? customers.filter(c =>
+                      c.name.toLowerCase().includes(q) ||
+                      (c.company_name || '').toLowerCase().includes(q)
+                    )
+                  : customers
                 return (
-                  <div className="absolute z-20 w-full bg-white border border-gray-200 rounded-xl mt-1 shadow-lg overflow-hidden max-h-52 overflow-y-auto">
-                    {matches.map(c => (
-                      <button
-                        type="button"
-                        key={c.id}
-                        onMouseDown={() => {
-                          setCustomerId(c.id)
-                          setCustomerSearch(c.name + (c.company_name ? ` — ${c.company_name}` : ''))
-                          setCustomerDropdownOpen(false)
-                          setLocation('')
-                        }}
-                        className="w-full text-right px-4 py-2.5 text-sm hover:bg-gray-50 active:bg-gray-100 border-b border-gray-100 last:border-0"
-                      >
-                        <span className="font-medium text-gray-900">{c.name}</span>
-                        {c.company_name && <span className="text-gray-400 text-xs mr-1"> — {c.company_name}</span>}
-                      </button>
-                    ))}
+                  <div className="absolute z-20 w-full bg-white border border-gray-200 rounded-xl mt-1 shadow-lg overflow-hidden">
+                    <div className="max-h-52 overflow-y-auto">
+                      {matches.length === 0 ? (
+                        <div className="py-2 px-4 text-sm text-gray-400">לא נמצאו לקוחות</div>
+                      ) : (
+                        matches.map(c => (
+                          <button
+                            type="button"
+                            key={c.id}
+                            onMouseDown={() => {
+                              setCustomerId(c.id)
+                              setCustomerSearch(c.name + (c.company_name ? ` — ${c.company_name}` : ''))
+                              setCustomerDropdownOpen(false)
+                              setLocation('')
+                            }}
+                            className="w-full text-right px-4 py-2.5 text-sm hover:bg-gray-50 active:bg-gray-100 border-b border-gray-100"
+                          >
+                            <span className="font-medium text-gray-900">{c.name}</span>
+                            {c.company_name && <span className="text-gray-400 text-xs mr-1"> — {c.company_name}</span>}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                    {/* Add new customer — always reachable without scrolling */}
+                    <button
+                      type="button"
+                      onMouseDown={() => {
+                        setCustomerModalName(customerSearch.trim())
+                        setShowCustomerModal(true)
+                        setCustomerDropdownOpen(false)
+                      }}
+                      className="sticky bottom-0 w-full text-right px-4 py-2.5 text-sm font-medium text-blue-600 bg-white border-t border-gray-200 flex items-center gap-1.5 hover:bg-blue-50 active:bg-blue-100"
+                    >
+                      <UserPlus size={15} /> הוסף לקוח חדש
+                    </button>
                   </div>
                 )
               })()}
@@ -399,6 +420,26 @@ export default function OrderForm({ initial, onClose, onSaved }) {
               {saving ? 'שומר...' : initial ? 'עדכן הזמנה' : 'צור הזמנה'}
             </button>
           </div>
+
+          {showCustomerModal && (
+            <CustomerModal
+              initial={{ name: customerModalName }}
+              onClose={() => setShowCustomerModal(false)}
+              onSave={async (form) => {
+                try {
+                  const created = await createCustomer(form)
+                  setCustomers(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name, 'he')))
+                  setCustomerId(created.id)
+                  setCustomerSearch(created.name + (created.company_name ? ` — ${created.company_name}` : ''))
+                  setLocation('')
+                  setShowCustomerModal(false)
+                } catch (err) {
+                  console.error('שגיאה ביצירת לקוח:', err)
+                  alert(`שגיאה ביצירת לקוח: ${err.message}`)
+                }
+              }}
+            />
+          )}
       </div>
     </div>
   )
